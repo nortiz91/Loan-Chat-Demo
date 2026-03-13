@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+  <title>Loan Application</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f4f6f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      width: 420px;
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .progress {
+      height: 8px;
+      background: #eee;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: #0070d2;
+      border-radius: 5px;
+      width: 50%;
+    }
+
+    .step {
+      display: none;
+    }
+
+    .step.active {
+      display: block;
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 10px;
+      background: #0070d2;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #005fb2;
+    }
+
+    .result {
+      margin-top: 10px;
+      font-weight: bold;
+      color: #444;
+      text-align: center;
+    }
+
+    .success {
+      color: green;
+      text-align: center;
+      margin-top: 15px;
+    }
+  </style>
+
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h2>Loan Application</h2>
+
+    <div class="progress">
+      <div id="progressBar" class="progress-bar"></div>
+    </div>
+
+    <form id="loanForm">
+
+      <!-- STEP 1 -->
+
+      <div id="step1" class="step active">
+
+        <label>Full Name</label>
+        <input type="text" id="name" required>
+
+        <label>SSN</label>
+        <input type="text" id="ssn" required maxlength="11" pattern="\d{3}-\d{2}-\d{4}" placeholder="123-45-6789"
+          inputmode="numeric">
+
+        <label>Annual Income</label>
+        <input type="numeric" id="income" required placeholder="$85,000">
+
+        <button type="button" onclick="nextStep()">Next</button>
+
+      </div>
+
+      <!-- STEP 2 -->
+
+      <div id="step2" class="step">
+
+        <label>Loan Amount</label>
+        <input type="numeric" id="amount" required placeholder="$85,000"">
+
+        <label>Loan Term</label>
+        <select id="term" onchange="calculatePayment()">
+          <option value="12">12 months</option>
+          <option value="24">24 months</option>
+          <option value="36">36 months</option>
+          <option value="60">60 months</option>
+        </select>
+
+        <label>Loan Type</label>
+        <select id="type">
+          <option>Personal Loan</option>
+          <option>Auto Loan</option>
+          <option>Home Improvement</option>
+        </select>
+
+        <div id="payment" class="result"></div>
+
+        <button type="submit">Submit Application</button>
+
+      </div>
+
+    </form>
+
+    <div id="message" class="success"></div>
+
+  </div>
+
+  <script>
+
+    function nextStep() {
+
+      document.getElementById("step1").classList.remove("active")
+      document.getElementById("step2").classList.add("active")
+
+      document.getElementById("progressBar").style.width = "100%"
+
+    }
+
+    function calculatePayment() {
+
+      const amount = document.getElementById("amount").value
+      const term = document.getElementById("term").value
+
+      if (!amount) return
+
+      const rate = 0.06 / 12
+
+      const payment =
+        (amount * rate) /
+        (1 - Math.pow(1 + rate, -term))
+
+      document.getElementById("payment").innerText =
+        "Estimated monthly payment: $" + payment.toFixed(2)
+
+    }
+
+    document.getElementById("loanForm")
+      .addEventListener("submit", async e => {
+
+        e.preventDefault()
+
+        const payload = {
+
+          name: document.getElementById("name").value,
+          ssn: document.getElementById("ssn").value,
+          income: document.getElementById("income").value,
+          amount: document.getElementById("amount").value,
+          term: document.getElementById("term").value,
+          type: document.getElementById("type").value
+
+        }
+
+        await fetch("/loan-request", {
+
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+
+        })
+
+        document.getElementById("message").innerText = "Your loan application was submitted successfully!"
+
+      })
+
+    const amountInput = document.getElementById("amount")
+    const incomeInput = document.getElementById("income")
+    setupCurrencyInput(amountInput)
+    setupCurrencyInput(incomeInput)
+
+    const debouncedEligibility = debounce(checkEligibility, 800)
+    document.getElementById("amount").addEventListener("input", debouncedEligibility)
+    document.getElementById("term").addEventListener("change", checkEligibility)
+    document.getElementById("ssn").addEventListener("blur", checkEligibility)
+    document.getElementById("income").addEventListener("input", debouncedEligibility)
+
+    async function checkEligibility() {
+      const ssn = document.getElementById("ssn").value
+      const amount = getNumericValue("amount")
+      const income = getNumericValue("income")
+      const term = document.getElementById("term").value
+
+      if (!ssn || !income || !amount || !term) {
+        return
+      }
+      if (ssn.replace(/\D/g, "").length !== 9) {
+        return
+      }
+
+      const payload = { ssn, income, amount, term }
+
+      const response = await fetch("/check-eligibility", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      })
+
+      const data = await response.json()
+      if (!data || !data.eligible) {
+        document.getElementById("payment").innerText = "Not eligible based on current profile."
+        document.getElementById("submitBtn").disabled = true
+        return
+      }
+
+      document.getElementById("payment").innerText =
+        `Pre-Approved ✔ APR: ${data.apr}% Monthly payment: $${data.monthlyPayment}`
+
+      document.getElementById("submitBtn").disabled = false
+    }
+
+    const ssnInput = document.getElementById("ssn")
+    ssnInput.addEventListener("input", () => {
+      let value = ssnInput.value.replace(/\D/g, "")
+
+      if (value.length > 9) {
+        value = value.substring(0, 9)
+      }
+      if (value.length > 5) {
+        value = value.replace(/(\d{3})(\d{2})(\d+)/, "$1-$2-$3")
+      }
+      else if (value.length > 3) {
+        value = value.replace(/(\d{3})(\d+)/, "$1-$2")
+      }
+
+      ssnInput.value = value
+    })
+
+    function debounce(func, delay) {
+      let timer
+      return function (...args) {
+        clearTimeout(timer)
+        timer = setTimeout(() => {
+          func.apply(this, args)
+        }, delay)
+      }
+    }
+
+    function setupCurrencyInput(input) {
+      input.addEventListener("input", () => {
+        let value = input.value.replace(/\D/g, "")
+
+        if (!value) {
+          input.value = ""
+          return
+        }
+
+        const formatted = Number(value).toLocaleString("en-US")
+        input.value = "$" + formatted
+      })
+
+    }
+
+    function getNumericValue(inputId) {
+      return document
+        .getElementById(inputId)
+        .value
+        .replace(/\D/g, "")
+    }
+  </script>
+
+</body>
+
+</html>
