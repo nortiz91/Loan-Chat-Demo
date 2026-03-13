@@ -206,7 +206,7 @@
 
         }
 
-        await fetch("/loan-request", {
+        await fetch("https://loan-chat-demo.onrender.com/loan-request", {
 
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -235,6 +235,10 @@
       const income = getNumericValue("income")
       const term = document.getElementById("term").value
 
+      console.error("ssn " + ssn);
+      console.error("income " + income);
+      console.error("amount " + amount);
+      console.error("term " + term);
       if (!ssn || !income || !amount || !term) {
         return
       }
@@ -244,7 +248,7 @@
 
       const payload = { ssn, income, amount, term }
 
-      const response = await fetch("/check-eligibility", {
+      const response = await fetch("https://loan-chat-demo.onrender.com/check-eligibility", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
